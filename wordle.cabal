@@ -47,6 +47,8 @@ maintainer:         rae@richarde.dev
 -- Extra files to be distributed with the package, such as examples or a README.
 extra-source-files: CHANGELOG.md
 
+tested-with: GHC==8.10.7, GHC==9.0.2
+
 executable wordle
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
