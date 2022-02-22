@@ -6,7 +6,11 @@ import Data.Vector
 import Data.Text
 import Data.String
 
+wordleWordLength :: Int
+wordleWordLength = 5
+
 newtype WordleWord = MkWord (Vec5 Char)
+  deriving (Eq, Ord)
 
 getLetters :: WordleWord -> Vec5 Char
 getLetters (MkWord letters) = letters

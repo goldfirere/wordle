@@ -1,0 +1,4 @@
+packages: wordle.cabal
+
+package wordle
+  optimization: False

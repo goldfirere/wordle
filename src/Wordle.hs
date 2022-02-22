@@ -5,6 +5,8 @@ import qualified Data.Map.Strict as M
 import qualified Data.Vector as V
 import qualified Data.Text as T
 
+import Data.String
+
 -- KNOWN BUG: Does not work for words with repeated letters
 
 import Words
@@ -22,6 +24,7 @@ allLocations = [0 .. 4]
 -- responses to guesses
 
 data LetterResponse = Gray | Yellow | Green
+  deriving (Eq)
 
 instance Show LetterResponse where
   show Gray = "X"
@@ -29,12 +32,23 @@ instance Show LetterResponse where
   show Green = "G"
 
 newtype Response = MkResponse (Vec5 LetterResponse)
+  deriving (Eq)
 
 getResponses :: Response -> Vec5 LetterResponse
 getResponses (MkResponse rs) = rs
 
 instance Show Response where
   show (MkResponse responses) = concatMap show (V.toList responses)
+
+instance IsString Response where
+  fromString input
+    | length input == wordleWordLength = MkResponse (V.fromList (map convert_letter_response input))
+    | otherwise = error "bad length"
+    where
+      convert_letter_response 'G' = Green
+      convert_letter_response 'Y' = Yellow
+      convert_letter_response 'X' = Gray
+      convert_letter_response _   = error "invalid letter"
 
 respondToGuess :: WordleWord   -- guess
                -> WordleWord   -- answer
