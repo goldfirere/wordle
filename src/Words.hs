@@ -72,7 +72,6 @@ mkWordleWord vec = MkWord (V.ifoldl' go mempty (getVector vec))
        -> WordRepresentation
     go acc index letter = M.alter alter_fn letter acc
       where
-        alter_fn _           = Just (S.singleton index)
         alter_fn Nothing     = Just (S.singleton index)
         alter_fn (Just locs) = Just (S.insert index locs)
 
