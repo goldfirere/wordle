@@ -15,7 +15,7 @@ import Words
 -- utility
 
 lettersInWord :: WordleWord -> S.Set Char
-lettersInWord word = V.foldl' (flip S.insert) S.empty (getLetters word)
+lettersInWord word = V.foldl' (flip S.insert) S.empty (getVector $ getLetters word)
 
 allLocations :: [Location]
 allLocations = [0 .. 4]
@@ -38,11 +38,11 @@ getResponses :: Response -> Vec5 LetterResponse
 getResponses (MkResponse rs) = rs
 
 instance Show Response where
-  show (MkResponse responses) = concatMap show (V.toList responses)
+  show (MkResponse responses) = concatMap show (V.toList $ getVector responses)
 
 instance IsString Response where
   fromString input
-    | length input == wordleWordLength = MkResponse (V.fromList (map convert_letter_response input))
+    | length input == wordleWordLength = MkResponse (mkVec5 $ V.fromList (map convert_letter_response input))
     | otherwise = error "bad length"
     where
       convert_letter_response 'G' = Green
@@ -53,12 +53,12 @@ instance IsString Response where
 respondToGuess :: WordleWord   -- guess
                -> WordleWord   -- answer
                -> Response     -- pattern of gray, yellow, and green boxes
-respondToGuess guess answer = MkResponse (V.zipWith convert green_spots (getLetters guess))
+respondToGuess guess answer = MkResponse (vec5ZipWith convert green_spots (getLetters guess))
   where
     answer_letters = lettersInWord answer
 
     green_spots :: Vec5 Bool
-    green_spots = V.zipWith (==) (getLetters guess) (getLetters answer)
+    green_spots = vec5ZipWith (==) (getLetters guess) (getLetters answer)
 
     convert :: Bool -> Char -> LetterResponse
     convert False the_letter | the_letter `S.member` answer_letters = Yellow
@@ -74,11 +74,10 @@ respondToGuess guess answer = MkResponse (V.zipWith convert green_spots (getLett
 --   2) it's not in the word
 --   3) it's in the word, but not in some spots
 
-type Location = Int   -- Int in the range 0 - 4
-
 data LetterInformation
   = LetterNotInWord
-  | LetterNotInLocations (S.Set Location)  -- set of places letter can *not* appear
+  | LetterInWord { here :: S.Set Location         -- set of places letter can *must* appear
+                 , not_here :: S.Set Location }   -- set of places letter can *not* appear
   deriving Show
 
 data State = MkState (M.Map Char LetterInformation)
@@ -94,9 +93,11 @@ instance Semigroup State where
     where
       combine :: LetterInformation -> LetterInformation -> LetterInformation
       combine LetterNotInWord LetterNotInWord = LetterNotInWord
-      combine LetterNotInWord (LetterNotInLocations {}) = error "duplicate letter (1)"
-      combine (LetterNotInLocations {}) LetterNotInWord = error "duplicate letter (2)"
-      combine (LetterNotInLocations locs1) (LetterNotInLocations locs2) = LetterNotInLocations (locs1 <> locs2)
+      combine LetterNotInWord (LetterInWord {}) = error "contradictory info (1)"
+      combine (LetterInWord {}) LetterNotInWord = error "contradictory info (2)"
+      combine (LetterInWord { here = here1, not_here = not_here1 })
+              (LetterInWord { here = here2, not_here = not_here2 })
+              = LetterInWord { here = here1 <> here2, not_here = not_here1 <> not_here2 }
 
 instance Monoid State where
   mempty = startingState
@@ -111,29 +112,46 @@ advanceState state word response = state <> new_state
     new_state = MkState new_mapping
 
     guess_with_response :: Vec5 (Char, LetterResponse)
-    guess_with_response = V.zip (getLetters word) (getResponses response)
+    guess_with_response = vec5Zip (getLetters word) (getResponses response)
 
-    new_mapping = V.ifoldl' go mempty guess_with_response
+    new_mapping = V.ifoldl' go mempty (getVector guess_with_response)
       where
         go :: M.Map Char LetterInformation -> Int -> (Char, LetterResponse) -> M.Map Char LetterInformation
-        go old_mapping _     (letter, Gray) = M.insert letter LetterNotInWord old_mapping
-        go old_mapping index (letter, Yellow) = M.insert letter (LetterNotInLocations (S.singleton index)) old_mapping
-        go old_mapping index (letter, Green) = M.insert letter (LetterNotInLocations (S.delete index (S.fromList allLocations))) old_mapping
+        go old_mapping _     (letter, Gray)   = M.insert letter LetterNotInWord old_mapping
+        go old_mapping index (letter, Yellow) = M.insert letter (LetterInWord { here = mempty, not_here = S.singleton index }) old_mapping
+        go old_mapping index (letter, Green)  = M.insert letter (LetterInWord { here = S.singleton index, not_here = mempty }) old_mapping
 
 --------------------------------------
 -- filtering
 
 -- set of all letters that are required, according to the state
+{-
 requiredLetters :: State -> S.Set Char
 requiredLetters (MkState mapping) = M.foldlWithKey' go S.empty mapping
   where
     go :: S.Set Char -> Char -> LetterInformation -> S.Set Char
     go already_required _current_letter LetterNotInWord = already_required
     go already_required current_letter (LetterNotInLocations {}) = current_letter `S.insert` already_required
+-}
 
 validWord :: State -> WordleWord -> Bool
-validWord state@(MkState mapping) word = no_letters_in_bad_locations word && all_required_letters word
+validWord (MkState mapping) word = all check_one_mapping mappings
+  -- no_letters_in_bad_locations word && all_required_letters word
   where
+    word_letters :: Vec5 Char
+    word_letters = getLetters word
+
+    mappings :: [(Char, LetterInformation)]
+    mappings = M.toList mapping
+
+    check_one_mapping :: (Char, LetterInformation) -> Bool
+    check_one_mapping (letter, LetterNotInWord) = not (letter `V.elem` getVector word_letters)
+    check_one_mapping (letter, LetterInWord { here = yes_locations, not_here = no_locations })
+      = all letter_is_in_location yes_locations && all (not . letter_is_in_location) no_locations && letter `V.elem` getVector word_letters
+      where
+        letter_is_in_location :: Location -> Bool
+        letter_is_in_location location = vec5Lookup word_letters location == letter
+  {-
     required_letters = requiredLetters state
 
     -- check whether any letter is in a forbidden location
@@ -152,10 +170,13 @@ validWord state@(MkState mapping) word = no_letters_in_bad_locations word && all
     -- all the required letters are indeed in the word
     all_required_letters :: WordleWord -> Bool
     all_required_letters word = required_letters `S.isSubsetOf` lettersInWord word
-
+  -}
 
 filterWords :: State -> V.Vector WordleWord -> V.Vector WordleWord
 filterWords state words = V.filter (validWord state) words
+
+partitionWords :: State -> V.Vector WordleWord -> (V.Vector WordleWord, V.Vector WordleWord)
+partitionWords state words = V.partition (validWord state) words
 
 ------------------
 -- examples
@@ -164,6 +185,6 @@ filterWords state words = V.filter (validWord state) words
 peachState :: State
 peachState = MkState (M.fromList [ ('p', LetterNotInWord)
                                  , ('e', LetterNotInWord)
-                                 , ('a', LetterNotInLocations (S.fromList [2]))
+                                 , ('a', LetterInWord { here = mempty, not_here = S.singleton 2 })
                                  , ('c', LetterNotInWord)
-                                 , ('h', LetterNotInLocations (S.fromList [0, 1, 2, 3])) ])
+                                 , ('h', LetterInWord { here = S.singleton 4, not_here = mempty })])
