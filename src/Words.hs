@@ -42,38 +42,48 @@ vec5Lookup :: forall a.
 vec5Lookup = coerce ((V.!) @a)
 
 -------------------------
+-- WordRep
 
-type WordRepresentation = M.Map Char (S.Set Location) -- invariant: locations 0 through 4 each appear only once
+type WordRep key = M.Map key (S.Set Location) -- invariant: locations 0 through 4 each appear only once
 
-newtype WordleWord = MkWord WordRepresentation
-  deriving (Eq, Ord)
-
-getLetters :: WordleWord -> Vec5 Char
-getLetters (MkWord mapping) = mkVec5 (V.generate wordleWordLength lookup_letter)
+getVec5FromWordRep :: forall key. WordRep key -> Vec5 key
+getVec5FromWordRep mapping = mkVec5 (V.generate wordleWordLength lookup_letter)
   where
-    lookup_letter :: Int -> Char
+    lookup_letter :: Int -> key
     lookup_letter index = inverted_mapping M.! index
 
-    inverted_mapping :: M.Map Location Char
+    inverted_mapping :: M.Map Location key
     inverted_mapping = M.foldMapWithKey go_map mapping
 
-    go_map :: Char -> S.Set Location -> M.Map Location Char
+    go_map :: key -> S.Set Location -> M.Map Location key
     go_map letter locations = foldMap go_set locations
       where
-        go_set :: Location -> M.Map Location Char
+        go_set :: Location -> M.Map Location key
         go_set loc = M.singleton loc letter
 
-mkWordleWord :: Vec5 Char -> WordleWord
-mkWordleWord vec = MkWord (V.ifoldl' go mempty (getVector vec))
+mkWordRepFromVec5 :: forall key. Ord key => Vec5 key -> WordRep key
+mkWordRepFromVec5 vec = V.ifoldl' go mempty (getVector vec)
   where
-    go :: WordRepresentation
+    go :: WordRep key
        -> Int    -- current index, i
-       -> Char   -- current character
-       -> WordRepresentation
+       -> key    -- current character
+       -> WordRep key
     go acc index letter = M.alter alter_fn letter acc
       where
         alter_fn Nothing     = Just (S.singleton index)
         alter_fn (Just locs) = Just (S.insert index locs)
+
+---------------------------------------------
+-- WordleWord
+
+newtype WordleWord = MkWord { getWordRep :: WordRep Char }
+  deriving (Eq, Ord)
+
+getLetters :: WordleWord -> Vec5 Char
+getLetters (MkWord mapping) = getVec5FromWordRep mapping
+
+mkWordleWord :: Vec5 Char -> WordleWord
+mkWordleWord vec = MkWord (mkWordRepFromVec5 vec)
 
 instance IsString WordleWord where
   fromString = mkWordleWord . mkVec5 . V.fromList

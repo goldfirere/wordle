@@ -10,6 +10,7 @@ import qualified Data.Vector as V
 
 import Words
 import Wordle
+import Response
 
 main = defaultMain tests
 
@@ -27,7 +28,8 @@ unitTests = testGroup "Unit tests"
        respondToGuess "peach" "party" @?= "GXYXX" ]
 
 propertyBasedTests :: TestTree
-propertyBasedTests = testGroup "Property tests"
+propertyBasedTests = localOption (QuickCheckReplay (Just 12345)) $
+  testGroup "Property tests"
   [ testProperty "wordle word constructor" wordleWordConstruction
   , testProperty "wordle word deconstruction" wordleWordDestruction
   , testProperty "wordle property" wordleProperty
@@ -58,8 +60,8 @@ validWordsWithSameResponse guess answer
     in
     all (\ filtered_word -> respondToGuess guess filtered_word == response) filtered
 
-wordleWordConstruction = (\ chars -> getLetters (mkWordleWord chars) == chars)
-wordleWordDestruction =  (\ word -> mkWordleWord (getLetters word) == word)
+wordleWordConstruction chars = getLetters (mkWordleWord chars) == chars
+wordleWordDestruction word = mkWordleWord (getLetters word) == word
 
 {-
 guess: papal
