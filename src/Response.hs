@@ -22,7 +22,7 @@ instance Show LetterResponse where
   show Green  = "G"
 
 newtype Response = MkResponse (WordRep LetterResponse)
-  deriving (Eq)
+  deriving (Eq, Ord)
 
 getResponses :: Response -> Vec5 LetterResponse
 getResponses (MkResponse rs) = getVec5FromWordRep rs

@@ -16,16 +16,7 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "All tests"
-  [ unitTests
-  , propertyBasedTests ]
-
-unitTests :: TestTree
-unitTests = testGroup "Unit tests"
-  [ testCase "filter peach" $
-      filterWords peachState finalWords @?=
-        ["marsh", "laugh", "rajah", "harsh", "faith"]
-   , testCase "respondToGuess" $
-       respondToGuess "peach" "party" @?= "GXYXX" ]
+  [ propertyBasedTests ]
 
 propertyBasedTests :: TestTree
 propertyBasedTests = localOption (QuickCheckReplay (Just 12345)) $
@@ -33,7 +24,9 @@ propertyBasedTests = localOption (QuickCheckReplay (Just 12345)) $
   [ testProperty "wordle word constructor" wordleWordConstruction
   , testProperty "wordle word deconstruction" wordleWordDestruction
   , testProperty "wordle property" wordleProperty
-  , testProperty "same response" validWordsWithSameResponse ]
+  , testProperty "same response" validWordsWithSameResponse
+  , testProperty "partition consistent" partitionConsistentProperty
+  , testProperty "partition apartness" partitionApartnessProperty ]
 
 instance Arbitrary a => Arbitrary (Vec5 a) where
   arbitrary = mkVec5 <$> V.replicateM wordleWordLength arbitrary
@@ -63,8 +56,28 @@ validWordsWithSameResponse guess answer
 wordleWordConstruction chars = getLetters (mkWordleWord chars) == chars
 wordleWordDestruction word = mkWordleWord (getLetters word) == word
 
+partitionConsistentProperty guess =
+  let groups = partitionWords guess finalWords in
+  and [ respondToGuess guess word == respondToGuess guess first
+      | group@(first:_) <- groups
+      , word <- group
+      ]
+
+partitionApartnessProperty guess =
+  let groups = partitionWords guess finalWords in
+  and [ respondToGuess guess first1 /= respondToGuess guess first2
+      | group1@(first1:_) <- groups
+      , group2@(first2:_) <- groups
+      , first1 /= first2
+      ]
+
 {-
 guess: papal
 answer: pupal
 response = GXGGG
+-}
+
+{-
+respondToGuess "otter" "fritz"
+XYXXY
 -}
