@@ -1,4 +1,4 @@
-module Response ( LetterResponse(..), Response, getResponses, respondToGuess  ) where
+module Response ( LetterResponse(..), Response, getResponses, respondToGuess, getResponseWordRep  ) where
 
 import qualified Data.Foldable   as F
 import qualified Data.Map.Strict as M
@@ -27,12 +27,15 @@ newtype Response = MkResponse (WordRep LetterResponse)
 getResponses :: Response -> Vec5 LetterResponse
 getResponses (MkResponse rs) = getVec5FromWordRep rs
 
+getResponseWordRep :: Response -> WordRep LetterResponse
+getResponseWordRep (MkResponse rs) = rs
+
 instance Show Response where
   show response = concatMap show (V.toList $ getVector $ getResponses response)
 
 instance IsString Response where
   fromString input
-    | length input == wordleWordLength = MkResponse (mkWordRepFromVec5 $ mkVec5 $ V.fromList (map convert_letter_response input))
+    | length input == wordleWordLength = MkResponse ((mkWordRepFromVec5 $ mkVec5 $ V.fromList (map convert_letter_response input)) <> M.fromList [(Gray, mempty), (Green, mempty), (Yellow, mempty)])
     | otherwise = error "bad length"
     where
       convert_letter_response 'G' = Green
