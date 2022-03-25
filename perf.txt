@@ -1,0 +1,8 @@
+measured commit ce4e227
+  measured (with `time`) at (user) 18.968s
+  allocations: 88794763280
+
+commit 91f9c0df
+after overloading partitionWords to work on Ints instead of [WordleWord]
+  allocations: 41405439680
+  user    0m9.636s
