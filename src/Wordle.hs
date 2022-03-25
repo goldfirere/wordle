@@ -1,5 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Wordle where
 
 import qualified Data.Set as S
@@ -57,17 +59,31 @@ filterWords state words = V.filter (validWord state) words
 -------------------------------
 -- finding a good guess
 
-partitionWords :: WordleWord            -- possible guess
+class Answer answer where
+  include :: WordleWord -> answer -> answer
+  maybeToAnswer :: Maybe answer -> answer
+instance Answer [WordleWord] where
+  include = (:)
+  maybeToAnswer Nothing = []
+  maybeToAnswer (Just words) = words
+instance Answer Int where
+  include _ = (+1)
+  maybeToAnswer Nothing = 0
+  maybeToAnswer (Just n) = n
+
+partitionWords :: forall answer
+                . Answer answer
+               => WordleWord            -- possible guess
                -> V.Vector WordleWord   -- possible answers
-               -> [[WordleWord]] -- partitioned answers; each word in a given sub-list
-                                 -- provides the *same* answer for the given guess
+               -> [answer] -- partitioned answers; each word in a given sub-list
+                           -- provides the *same* answer for the given guess
 partitionWords guess possible_answers = M.elems (F.foldl' go mempty possible_answers)
   where
-    go :: M.Map Response [WordleWord] -> WordleWord -> M.Map Response [WordleWord]
+    go :: M.Map Response answer -> WordleWord -> M.Map Response answer
     go acc possible_answer = M.alter alter_fun (respondToGuess guess possible_answer) acc
       where
-        alter_fun :: Maybe [WordleWord] -> Maybe [WordleWord]
-        alter_fun old_entry = Just (possible_answer : F.concat old_entry)
+        alter_fun :: Maybe answer -> Maybe answer
+        alter_fun old_entry = Just (include possible_answer (maybeToAnswer old_entry))
 {-
 [ [a,b,c], [d,e], [f], [g,h,i,j,k,l] ]
 [ 3, 2, 1, 6 ]    total: 12
@@ -87,7 +103,7 @@ expectedNumberOfEliminatedWords total lengths = sum [ len / total_double * (tota
 
 expectedValueOfGuess :: WordleWord -> V.Vector WordleWord -> Double
 expectedValueOfGuess word possible_words = expectedNumberOfEliminatedWords (V.length possible_words)
-                                             (getLengths $ partitionWords word possible_words)
+                                             (partitionWords word possible_words)
 
 maxExpectedValue :: V.Vector WordleWord -> WordleWord
 maxExpectedValue possible_words = fst $ F.maximumBy (compare `on` snd)
