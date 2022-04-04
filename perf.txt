@@ -6,3 +6,5 @@ commit 91f9c0df
 after overloading partitionWords to work on Ints instead of [WordleWord]
   allocations: 41405439680
   user    0m9.636s
+
+same commit
