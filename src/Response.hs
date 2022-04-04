@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 module Response ( LetterResponse(..), Response, getResponses, respondToGuess, getResponseWordRep  ) where
 
 import qualified Data.Foldable   as F
@@ -60,17 +61,17 @@ respondToGuess (MkWord guess_rep) (MkWord answer_rep) = MkResponse $
         go :: S.Set Location   -- locations of a given letter in the guess
            -> S.Set Location   -- locations of a given letter in the answer
            -> (S.Set Location, S.Set Location, S.Set Location)   -- green locations, yellow locations, some gray locations
-        go guess_locs answer_locs =
+        go !guess_locs !answer_locs =
           (green_locs, yellow_locs, gray_locs)
           where
               -- running example: "adapt" "adore"
               -- guess_locs: a: {0, 2}
               -- answer_locs: a: {0}
-            green_locs = answer_locs `S.intersection` guess_locs          -- a: {0}
-            answer_locs_not_green = answer_locs `S.difference` guess_locs -- a: {}
-            n_answer_locs_not_green = S.size answer_locs_not_green        -- a: 0
-            guess_locs_not_green = guess_locs `S.difference` green_locs   -- a: {2}
+            !green_locs = answer_locs `S.intersection` guess_locs          -- a: {0}
+            !answer_locs_not_green = answer_locs `S.difference` guess_locs -- a: {}
+            !n_answer_locs_not_green = S.size answer_locs_not_green        -- a: 0
+            !guess_locs_not_green = guess_locs `S.difference` green_locs   -- a: {2}
 
-            (yellow_locs_list, gray_locs_list) = splitAt n_answer_locs_not_green (S.toAscList guess_locs_not_green)
-            yellow_locs = S.fromList yellow_locs_list
-            gray_locs = S.fromList gray_locs_list
+            !(!yellow_locs_list, !gray_locs_list) = splitAt n_answer_locs_not_green (S.toAscList guess_locs_not_green)
+            !yellow_locs = S.fromList yellow_locs_list
+            !gray_locs = S.fromList gray_locs_list

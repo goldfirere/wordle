@@ -7,4 +7,22 @@ after overloading partitionWords to work on Ints instead of [WordleWord]
   allocations: 41405439680
   user    0m9.636s
 
-same commit
+commit e1473d0  (just added criterion measurement)
+
+benchmarking respond/peach/party
+time                 851.6 ns   (850.6 ns .. 852.7 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 852.1 ns   (850.9 ns .. 853.4 ns)
+std dev              4.071 ns   (3.284 ns .. 5.739 ns)
+
+benchmarking respond/aioli/fries
+time                 738.1 ns   (735.8 ns .. 739.7 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 735.0 ns   (733.7 ns .. 736.4 ns)
+std dev              4.598 ns   (3.926 ns .. 5.364 ns)
+
+benchmarking respond/bench/patty
+time                 682.3 ns   (679.8 ns .. 685.4 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 684.7 ns   (682.2 ns .. 686.8 ns)
+std dev              7.248 ns   (5.930 ns .. 9.112 ns)
